@@ -1,0 +1,61 @@
+services:
+  frontend:
+    build:
+      context: ../web/frontend
+      dockerfile: Dockerfile
+    image: ${FRONTEND_HOST}
+    container_name: ${FRONTEND_HOST}
+    env_file:
+      - ./public.env
+    expose:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    volumes:
+      - ../web/frontend/app:/app
+    stop_grace_period: 1s
+  backend:
+    build:
+      context: ../web/backend
+      dockerfile: Dockerfile
+    image: ${BACKEND_HOST}
+    container_name: ${BACKEND_HOST}
+    env_file:
+      - ./public.env
+    expose:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    volumes:
+      - ../web/backend/app:/app:ro
+    depends_on:
+      llm:
+        condition: service_started
+  llm:
+    build:
+      context: ../llm
+      dockerfile: Dockerfile
+      args:
+        - LLM_MODEL=${LLM_MODEL}
+        - LLM_PORT=${LLM_PORT}
+    image: ${LLM_HOST}
+    container_name: ${LLM_HOST}
+    env_file:
+      - ./public.env
+    ports:
+      - "${LLM_PORT}:${LLM_PORT}"
+  proxy:
+    build:
+      context: ../web/proxy
+      dockerfile: Dockerfile
+      args:
+        - BACKEND_HOST=${BACKEND_HOST}
+        - BACKEND_PORT=${BACKEND_PORT}
+        - FRONTEND_HOST=${FRONTEND_HOST}
+        - FRONTEND_PORT=${FRONTEND_PORT}
+    image: ${PROXY_HOST}
+    container_name: ${PROXY_HOST}
+    env_file:
+      - ./public.env
+    ports:
+      - ${PROXY_PORT}:${PROXY_PORT}
+      - ${PROXY_SSL_PORT}:${PROXY_SSL_PORT}
+    depends_on:
+      - frontend
+      - backend

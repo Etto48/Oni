@@ -1,0 +1,8 @@
+uvicorn
+fastapi
+python-multipart
+openai
+pydantic
+colorlog
+psycopg[binary,pool]
+itsdangerous

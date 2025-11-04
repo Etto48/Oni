@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd $(dirname "$0")
+MODE=${1:-dev}
+ADDITIONAL_ARGS=${@:2}
+if [ "$MODE" = "dev" ]; then
+    DOCKER_COMPOSE="-f docker-compose.yml"
+elif [ "$MODE" = "rm" ]; then
+    DOCKER_COMPOSE="-f docker-compose.yml"
+else
+    echo "Invalid MODE: $MODE. Use 'dev' or 'rm'."
+    exit 1
+fi
+ENV_FILES="--env-file public.env"
+
+function stop() {
+    if [ "$MODE" = "dev" ]; then
+        docker compose $DOCKER_COMPOSE $ENV_FILES down
+    elif [ "$MODE" = "rm" ]; then
+        docker compose $DOCKER_COMPOSE $ENV_FILES down -v --rmi all --remove-orphans
+    fi
+}
+
+function start() {
+    if [ "$MODE" = "dev" ]; then
+        docker compose $DOCKER_COMPOSE $ENV_FILES up --build $ADDITIONAL_ARGS
+    elif [ "$MODE" = "rm" ]; then
+        # do nothing
+        echo "Removing all containers, images, volumes, and networks..."
+    fi
+}
+
+trap stop EXIT
+
+start
