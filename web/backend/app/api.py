@@ -1,6 +1,6 @@
 import asyncio
 import fastapi
-from models import ChatCommand, ChatMessage, ChatRestore, WSResponse, WSResponseDone, WSResponseText
+from models import ChatCommand, ChatMessage, StopAsyncGenerator, WSResponse
 import logging
 try:
     from web.backend.app.llm import LLM
@@ -18,37 +18,34 @@ async def health_check():
 async def chat_completion(websocket: fastapi.WebSocket):
     await websocket.accept()
     messages = [
-        ChatMessage(role="system", content="You are a helpful assistant. You can use appropriate tools to answer user queries.")
+        ChatMessage(role="system", content="You are a helpful assistant.")
     ]
     llm: LLM = websocket.app.state.llm
     async def try_receive():
         return ChatCommand(**await websocket.receive_json())
     try:
         while True:
-            command_dict = await websocket.receive_json()
-            command = ChatCommand(**command_dict)
+            json_ = await websocket.receive_json()
+            command = ChatCommand(**json_)
             match command.kind:
                 case "message":
-                    messages.append(ChatMessage(**command_dict))
-                    response_stream = llm.chat_completion(messages)
-                    new_message = ChatMessage(role="assistant", content="")
-                    async for chunk in response_stream:
-                        recv_task = asyncio.create_task(try_receive())
-                        try:
-                            command = await asyncio.wait_for(recv_task, timeout=0.1)
-                            if command.kind == "stop":
-                                logger.info("Received stop command from client.")
-                                break
-                        except asyncio.TimeoutError:
-                            pass
-
-                        new_message.content += chunk
-                        await websocket.send_json(WSResponseText(text=chunk).model_dump())
-                    messages.append(new_message)
-                    await websocket.send_json(WSResponseDone().model_dump())
+                    messages.append(command.message)
+                    try:
+                        response_stream = llm.chat_completion(messages)
+                        async for chunk in response_stream:
+                            recv_task = asyncio.create_task(try_receive())
+                            try:
+                                command = await asyncio.wait_for(recv_task, timeout=0.01)
+                                if command.kind == "stop":
+                                    break
+                            except asyncio.TimeoutError:
+                                pass
+                            await websocket.send_json(chunk.model_dump())
+                    except StopAsyncGenerator as e:
+                        new_messages: list[ChatMessage] = e.value if e.value else []
+                        messages.extend(new_messages)
                 case "restore":
-                    restore = ChatRestore(**command_dict)
-                    messages = restore.messages
+                    messages = command.messages
                 case _:
                     pass
     except fastapi.WebSocketDisconnect:

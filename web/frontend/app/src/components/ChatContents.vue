@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatMessage } from '@/types';
 import { ref, watch } from 'vue';
+import ChatDisplayMessage from './ChatDisplayMessage.vue';
 
 const props = defineProps<{
     messages: Array<ChatMessage>;
@@ -29,15 +30,11 @@ function handleScroll(event: Event) {
 
 <template>
     <div class="chat-contents" ref="chatContentsRef" @scroll="handleScroll">
-        <div
+        <ChatDisplayMessage
             v-for="(message, index) in messages.filter(m => m.role !== 'system')"
             :key="index"
-            :class="['message', message.role]"
-        >
-            <div class="message-content">
-                {{ message.content }}
-            </div>
-        </div>
+            :message="message"
+        />
     </div>
 </template>
 
@@ -49,21 +46,5 @@ function handleScroll(event: Event) {
     padding: 1rem;
     flex: 1;
     overflow-y: auto;
-}
-.message {
-    max-width: 70%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    word-wrap: break-word;
-}
-.message.user {
-    align-self: flex-end;
-    background-color: var(--color-border);
-    color: var(--color-text-strong);
-}
-
-.message.assistant {
-    align-self: flex-start;
-
 }
 </style>

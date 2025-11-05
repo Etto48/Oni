@@ -52,6 +52,7 @@ services:
         - FRONTEND_PORT=${FRONTEND_PORT}
     image: ${PROXY_HOST}
     container_name: ${PROXY_HOST}
+    stop_grace_period: 1s
     env_file:
       - ./public.env
     ports:

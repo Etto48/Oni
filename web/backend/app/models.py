@@ -1,28 +1,25 @@
 import pydantic
 from typing import Literal
 
+class ChatMessage(pydantic.BaseModel):
+    role: Literal["system", "user", "assistant", "tool"]
+    tool_calls: list[dict] = []
+    tool_call_id: str | None = None
+    content: str = ""
 
 class ChatCommand(pydantic.BaseModel):
     kind: Literal["stop", "message", "restore"]
-
-class ChatMessage(ChatCommand):
-    kind: Literal["message"] = "message"
-    role: Literal["system", "user", "assistant"]
-    content: str
-
-class ChatRestore(ChatCommand):
-    kind: Literal["restore"] = "restore"
-    messages: list[ChatMessage]
-
-class ChatStop(ChatCommand):
-    kind: Literal["stop"] = "stop"
+    message: ChatMessage | None = None
+    messages: list[ChatMessage] | None = None
 
 class WSResponse(pydantic.BaseModel):
-    kind: Literal["text", "done"]
+    kind: Literal["text", "reasoning", "done", "tool_calls", "tool_result"]
+    text: str | None = None
+    reasoning: str | None = None
+    tool_calls: list[dict] | None = None
+    tool_call_id: str | None = None
+    content: str | None = None
 
-class WSResponseText(WSResponse):
-    kind: Literal["text"] = "text"
-    text: str
-
-class WSResponseDone(WSResponse):
-    kind: Literal["done"] = "done"
+class StopAsyncGenerator(Exception):
+    def __init__(self, value):
+        self.value = value

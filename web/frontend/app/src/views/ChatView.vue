@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ChatContents from '@/components/ChatContents.vue';
 import ChatInput from '@/components/ChatInput.vue';
-import type { ChatMessage, WSResponse } from '@/types';
+import type { ChatCommand, ChatMessage, WSResponse, ToolCall } from '@/types';
 import { onMounted, ref } from 'vue';
 
 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -12,6 +12,45 @@ const loading = ref(true);
 const generating = ref(false);
 
 let ws: WebSocket | null = null;
+
+function appendMessage(data: WSResponse) {
+    console.log("Received data:", data);
+    if ((data.kind === 'text' || data.kind === 'reasoning') && (messages.value.length > 0 && messages.value[messages.value.length -1]!.role !== 'assistant' || messages.value[messages.value.length -1]!.tool_calls != undefined)) {
+        messages.value.push({ role: 'assistant', content: '' });
+    }
+    if (data.kind === 'text') {
+        // Handle incoming text chunk
+        if (messages.value.length > 0) {
+            const lastMessage = messages.value[messages.value.length - 1];
+            if (lastMessage!.role === 'assistant') {
+                lastMessage!.content += data.text;
+            }
+        }
+    } else if (data.kind === 'reasoning') {
+        if (messages.value.length > 0) {
+            const lastMessage = messages.value[messages.value.length - 1];
+            if (lastMessage!.role === 'assistant') {
+                if (!lastMessage!.reasoning) {
+                    lastMessage!.reasoning = '';
+                }
+                lastMessage!.reasoning += data.reasoning;
+            }
+        }
+    } else if (data.kind === 'tool_calls') {
+        if (messages.value.length > 0) {
+            // add a message with tool calls
+            messages.value.push({ role: 'assistant', tool_calls: data.tool_calls, content: '' });
+        }
+    } else if (data.kind === 'tool_result') {
+        if (messages.value.length > 0) {
+            messages.value.push({ role: 'tool', tool_call_id: data.tool_call_id!, content: data.content! });
+        }
+    } else if (data.kind === 'done') {
+        // Handle completion
+        loading.value = false;
+        generating.value = false;
+    }
+}
 
 function connectWebSocket() {
     ws = new WebSocket(`${protocol}://${host}${path}/api/chat`);
@@ -38,19 +77,7 @@ function connectWebSocket() {
     };
     ws.onmessage = (event: MessageEvent) => {
         const data: WSResponse = JSON.parse(event.data);
-        if (data.kind === 'text') {
-            // Handle incoming text chunk
-            if (messages.value.length > 0) {
-                const lastMessage = messages.value[messages.value.length - 1];
-                if (lastMessage!.role === 'assistant') {
-                    lastMessage!.content += data.text;
-                }
-            }
-        } else if (data.kind === 'done') {
-            // Handle completion
-            loading.value = false;
-            generating.value = false;
-        }
+        appendMessage(data);
     };
 }
 
@@ -63,7 +90,8 @@ function sendMessage(message: string) {
     generating.value = true;
     messages.value.push({ role: 'user', content: message });
     messages.value.push({ role: 'assistant', content: '' }); // Placeholder for assistant response
-    ws?.send(JSON.stringify({ kind: "message", role: "user", content: message }));
+    const message_to_send: ChatCommand = { kind: "message", message: { role: "user", content: message } };
+    ws?.send(JSON.stringify(message_to_send));
 }
 
 function sendStop() {
