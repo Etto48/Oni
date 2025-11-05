@@ -26,6 +26,10 @@ server {{
         # Cookie handling
         proxy_set_header Cookie $http_cookie;
         proxy_pass_header Set-Cookie;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
         
         # Timeout settings
         proxy_connect_timeout 60s;

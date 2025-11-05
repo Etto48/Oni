@@ -1,8 +1,7 @@
 uvicorn
 fastapi
+websockets
 python-multipart
 openai
 pydantic
 colorlog
-psycopg[binary,pool]
-itsdangerous

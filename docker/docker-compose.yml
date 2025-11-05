@@ -40,6 +40,7 @@ services:
       - ./public.env
     ports:
       - "${LLM_PORT}:${LLM_PORT}"
+    restart: unless-stopped
   proxy:
     build:
       context: ../web/proxy
