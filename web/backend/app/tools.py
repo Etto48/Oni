@@ -1,4 +1,5 @@
 import httpx
+from duckduckgo_search import DDGS
 from pydantic import BaseModel, Field
 import bs4
 
@@ -25,17 +26,9 @@ class SearchArgs(BaseModel):
 
 async def search(args: SearchArgs) -> str:
     """Perform a web search."""
-    url = f"https://en.wikipedia.org/wiki/{args.query.replace(' ', '_')}"
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-    async with httpx.AsyncClient() as client:    
-        while True:
-            response = await client.get(url, headers={"User-Agent": user_agent})        
-            if response.status_code // 100 == 3:
-                url = response.headers['Location']
-            else:
-                break
-    if response.status_code != 200:
-        return f"Error: Unable to perform search. Status code: {response.status_code}"
-    soup = bs4.BeautifulSoup(response.text, 'html.parser')
-    for result in soup.select('#bodyContent'):
-        return result.get_text(separator='\n', strip=True)
+    results = []
+    with DDGS() as ddgs:
+        for r in ddgs.text(args.query, max_results=5):
+            results.append(f"Title: {r['title']}\nLink: {r['href']}\nSnippet: {r['body']}\n")
+    return "\n".join(results)
+    

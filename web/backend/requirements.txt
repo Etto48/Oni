@@ -6,3 +6,4 @@ openai
 pydantic
 colorlog
 beautifulsoup4
+duckduckgo-search

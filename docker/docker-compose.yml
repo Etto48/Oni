@@ -41,6 +41,16 @@ services:
     ports:
       - "${LLM_PORT}:${LLM_PORT}"
     restart: unless-stopped
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
   proxy:
     build:
       context: ../web/proxy
